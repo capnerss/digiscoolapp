@@ -1,9 +1,49 @@
 // Глобальная переменная для хранения загруженных курсов
 let allCourses = [];
 
+
 window.onload = async function() {
+    // Сначала запускаем проверку системы
+    await checkSystem();
     await loadCourses();
 };
+
+
+// НОВАЯ ФУНКЦИЯ
+async function checkSystem() {
+    console.log("Checking system requirements...");
+
+    // 1. Зовем Python (функцию из Task 1)
+    const status = await eel.check_software_versions()();
+    console.log("System Status:", status);
+
+    // 2. Функция-помощник для обновления одного значка
+    updateBadge('java', status.java);
+    updateBadge('node', status.node);
+    updateBadge('git', status.git);
+}
+
+function updateBadge(idName, info) {
+    const el = document.getElementById(`status-${idName}`);
+    const iconSpan = el.querySelector('.icon');
+
+    // Удаляем старые классы (checking)
+    el.classList.remove('checking', 'success', 'error');
+
+    if (info.installed) {
+        // УСПЕХ ✅
+        el.classList.add('success');
+        iconSpan.innerText = '✅';
+        // Показываем версию при наведении
+        el.title = `Installed: ${info.version}`;
+    } else {
+        // ОШИБКА ❌
+        el.classList.add('error');
+        iconSpan.innerText = '❌';
+        el.title = "Not installed! (Puudub)";
+    }
+}
+
 
 async function loadCourses() {
     const courses = await eel.get_courses()();

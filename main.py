@@ -5,8 +5,82 @@ import re
 import requests
 import zipfile
 import io
+import subprocess
 
-eel.init('web')
+
+def _get_cmd_output(command_list):
+    """
+    Внутренняя функция для запуска команды в терминале.
+    Скрывает черное окно консоли на Windows.
+    """
+    startupinfo = None
+
+    # Специфика Windows: подавляем появление черного окна
+    if os.name == 'nt':
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+    try:
+        # Запускаем процесс
+        result = subprocess.run(
+            command_list,
+            stdout=subprocess.PIPE,  # Перехват обычного вывода
+            stderr=subprocess.PIPE,  # Перехват ошибок (Java пишет версию сюда)
+            text=True,  # Получаем сразу строки, а не байты
+            startupinfo=startupinfo  # Применяем настройки скрытия окна
+        )
+
+        # Если код возврата 0 (Успех), возвращаем вывод
+        if result.returncode == 0:
+            # Некоторые программы (Java) пишут версию в stderr, другие в stdout.
+            # Берем то, что не пустое.
+            return result.stdout.strip() or result.stderr.strip()
+        return None
+
+    except FileNotFoundError:
+        return None  # Команда не найдена (программа не установлена)
+    except Exception as e:
+        print(f"Error checking {command_list}: {e}")
+        return None
+
+
+@eel.expose
+def check_software_versions():
+    """
+    Проверяет версии Java, Node.js и Git.
+    Возвращает словарь со статусами.
+    """
+    print("--- Проверка окружения... ---")
+
+    status = {
+        "java": {"installed": False, "version": ""},
+        "node": {"installed": False, "version": ""},
+        "git": {"installed": False, "version": ""}
+    }
+
+    # 1. Проверка Java (java -version)
+    java_out = _get_cmd_output(["java", "-version"])
+    if java_out:
+        status["java"]["installed"] = True
+        # Парсим первую строку, например: "openjdk version 17.0.1..."
+        # Берем только первую строку для красоты
+        status["java"]["version"] = java_out.split('\n')[0]
+
+    # 2. Проверка Node.js (node -v)
+    node_out = _get_cmd_output(["node", "-v"])
+    if node_out:
+        status["node"]["installed"] = True
+        status["node"]["version"] = node_out  # Обычно просто "v16.13.0"
+
+    # 3. Проверка Git (git --version)
+    git_out = _get_cmd_output(["git", "--version"])
+    if git_out:
+        status["git"]["installed"] = True
+        # git output: "git version 2.33.0.windows.1" -> Очистим лишнее
+        status["git"]["version"] = git_out.replace("git version", "").strip()
+
+    print(f"Результат проверки: {status}")
+    return status
 
 
 @eel.expose
@@ -151,4 +225,5 @@ def ensure_project_folder(course_name, student_name, project_name):
 
 
 if __name__ == '__main__':
+    eel.init('web')
     eel.start('index.html', size=(1000, 700))

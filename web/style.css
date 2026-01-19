@@ -1,0 +1,66 @@
+/* Общие настройки страницы */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7f6;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto; /* Центрирование контейнера */
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+header h1 {
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+/* --- GRID LAYOUT (Суть задачи) --- */
+.courses-grid {
+    display: grid;
+    /* Магия адаптивности: колонки создаются сами, минимум 200px шириной */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 25px; /* Расстояние между карточками */
+}
+
+/* --- Стили Карточки --- */
+.course-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #eee;
+}
+
+/* Эффект при наведении мышки */
+.course-card:hover {
+    transform: translateY(-5px); /* Карточка чуть всплывает */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    border-color: #3498db;
+}
+
+.card-icon {
+    font-size: 40px; /* Размер эмодзи */
+    margin-bottom: 15px;
+}
+
+.course-card h3 {
+    margin: 10px 0;
+    font-size: 18px;
+}
+
+.course-card p {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin: 0;
+}

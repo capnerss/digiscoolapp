@@ -2,10 +2,39 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
     <script type="text/javascript" src="/eel.js"></script>
     <title>DigiScool</title>
 </head>
 <body>
+<div class="container">
+        <header>
+            <h1>Доступные курсы</h1>
+            <p>Выберите курс, чтобы начать работу</p>
+        </header>
+
+        <div id="courses-grid" class="courses-grid">
+
+            <div class="course-card">
+                <div class="card-icon">☕</div> <h3>Java Minecraft</h3>
+                <p>2 проекта</p>
+            </div>
+
+            <div class="course-card">
+                <div class="card-icon">🎮</div>
+                <h3>Unity Game Dev</h3>
+                <p>1 проект</p>
+            </div>
+
+            <div class="course-card">
+                <div class="card-icon">🐍</div>
+                <h3>Python Basics</h3>
+                <p>5 проектов</p>
+            </div>
+
+        </div>
+    </div>
 <button onclick="callPython()">Start</button>
  <h2 id="result"></h2>
 

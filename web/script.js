@@ -93,14 +93,72 @@ function goBack() {
 }
 
 
-function startDownload(courseId, projectName, index) {
-    const name = document.getElementById('student-name').value;
+async function startDownload(courseId, projectName, index) {
+    const nameInput = document.getElementById('student-name');
+    const name = nameInput.value;
+
+    // Валидация: имя обязательно
     if (!name) {
-        alert("Пожалуйста, введите имя!");
+        alert("Palun sisesta oma nimi! (Пожалуйста, введите имя)");
+        nameInput.focus(); // Ставим курсор в поле
         return;
     }
 
-    // Тест визуализации (покажем бар)
-    document.getElementById(`progress-container-${index}`).style.display = 'block';
-    console.log(`Скачиваем ${projectName} для ${name}`);
+    // 1. Показываем контейнер прогресс-бара
+    const container = document.getElementById(`progress-container-${index}`);
+    container.style.display = 'block';
+
+    // 2. Сбрасываем полоску в 0 (на случай повторного скачивания)
+    update_ui_progress(index, 0, "Ühendamine... (Соединение)");
+
+    // 3. Блокируем кнопку, чтобы не нажали 10 раз
+    // Ищем кнопку внутри родительского блока (немного магии DOM)
+    // Или можно было дать кнопке ID, но так быстрее:
+    const btn = container.parentElement.querySelector('.btn-download');
+    if (btn) btn.disabled = true;
+
+    // --- ЗДЕСЬ БУДЕТ ВЫЗОВ PYTHON (в следующей задаче) ---
+    // Пока просто эмулируем работу для теста DIG-15
+    console.log(`Call Python: download('${courseId}', '${projectName}', '${name}', ${index})`);
+
+    // ВРЕМЕННЫЙ ТЕСТ (Удалишь, когда будем делать DIG-16)
+    // Эмулируем, как Python дергает нашу новую функцию
+    setTimeout(() => update_ui_progress(index, 20, "Laadimine..."), 500);
+    setTimeout(() => update_ui_progress(index, 50, "Pakkimine..."), 1500);
+    setTimeout(() => {
+        update_ui_progress(index, 100, "Valmis!");
+        if (btn) btn.disabled = false; // Разблокируем кнопку
+    }, 2500);
+}
+// Делаем функцию доступной, чтобы Python мог её вызывать
+eel.expose(update_ui_progress);
+
+/**
+ * Обновляет прогресс-бар конкретного проекта.
+ * @param {number} index - Индекс проекта в списке (0, 1, 2...)
+ * @param {number} percent - Процент загрузки (0-100)
+ * @param {string} text - Текстовое сообщение (например, "Скачивание...")
+ */
+function update_ui_progress(index, percent, text) {
+    // 1. Находим элементы по ID, которые мы создали в DIG-14
+    const progressBar = document.getElementById(`progress-bar-${index}`);
+    const statusText = document.getElementById(`status-text-${index}`);
+
+    if (progressBar && statusText) {
+        // 2. Меняем ширину полоски
+        progressBar.style.width = percent + '%';
+
+        // 3. Меняем текст
+        statusText.innerText = text;
+
+        // 4. Маленькая красота: если 100%, меняем цвет на зеленый
+        if (percent >= 100) {
+            progressBar.style.backgroundColor = '#2ecc71'; // Зеленый
+        } else {
+             // Возвращаем синий (на случай, если качаем второй раз)
+            progressBar.style.backgroundColor = '#3498db';
+        }
+    } else {
+        console.error(`Элементы прогресс-бара для индекса ${index} не найдены!`);
+    }
 }

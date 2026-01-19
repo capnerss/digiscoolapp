@@ -6,9 +6,33 @@ window.onload = async function() {
     // Сначала запускаем проверку системы
     await checkSystem();
     await loadCourses();
+    await loadSettings();
 };
 
+// Загружаем настройки при старте
+async function loadSettings() {
+    const settings = await eel.get_current_settings()();
+    document.getElementById('install-path').value = settings.download_path;
+}
 
+// Вызов диалога выбора папки
+async function changeFolder() {
+    // Меняем текст кнопки, чтобы показать реакцию
+    const btn = document.querySelector('.btn-secondary');
+    const originalText = btn.textContent;
+    btn.textContent = 'Opening...';
+
+    // Вызываем Python (окно откроется поверх браузера)
+    const newPath = await eel.choose_folder()();
+
+    if (newPath) {
+        // Если выбрали папку — обновляем поле
+        document.getElementById('install-path').value = newPath;
+        console.log("New path saved:", newPath);
+    }
+
+    btn.textContent = originalText;
+}
 // Функция запуска проверки системы
 async function checkSystem() {
     console.log("🔍 Starting Environment Check...");

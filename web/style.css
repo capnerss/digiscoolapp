@@ -247,3 +247,39 @@ header h1 {
     color: #666;
     margin-left: 3px;
 }
+/* style.css */
+.settings-panel {
+    margin: 20px 0;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.path-control {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+#install-path {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #f9f9f9;
+    color: #555;
+    font-family: monospace; /* Чтобы путь выглядел технично */
+}
+
+.btn-secondary {
+    background: #e0e0e0;
+    border: none;
+    padding: 0 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.btn-secondary:hover {
+    background: #d0d0d0;
+}

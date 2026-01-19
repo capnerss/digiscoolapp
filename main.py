@@ -7,6 +7,74 @@ import zipfile
 import io
 import subprocess
 import sys
+import tkinter as tk
+from tkinter import filedialog
+
+
+CONFIG_FILE = 'config.json'
+
+
+def _load_config():
+    """Читает конфиг. Если файла нет — возвращает дефолт."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass  # Если файл битый, игнорируем
+    return {"download_path": ""}
+
+
+def _save_config(key, value):
+    """Обновляет одно значение в конфиге и сохраняет файл."""
+    config = _load_config()
+    config[key] = value
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=4)
+
+
+def _get_default_download_path():
+    """Путь по умолчанию: Documents/DigiSchool"""
+    return os.path.join(os.path.expanduser("~"), "Documents", "DigiSchool")
+
+
+# --- API EEL ---
+
+@eel.expose
+def get_current_settings():
+    """Отдает Frontend текущую папку загрузки"""
+    config = _load_config()
+    current_path = config.get("download_path")
+
+    if not current_path:
+        current_path = _get_default_download_path()
+
+    return {"download_path": current_path}
+
+
+@eel.expose
+def choose_folder():
+    """
+    Открывает нативное окно выбора папки через Tkinter.
+    Возвращает выбранный путь или None, если отменили.
+    """
+    # Создаем скрытое окно Tkinter (оно нужно, чтобы запустить диалог)
+    root = tk.Tk()
+    root.withdraw()  # Скрываем главное окно
+    root.wm_attributes('-topmost', 1)  # Окно диалога будет поверх всех окон
+
+    folder_selected = filedialog.askdirectory()
+
+    root.destroy()  # Уничтожаем окно после выбора
+
+    if folder_selected:
+        # Нормализуем путь (меняем слэши для красоты)
+        folder_selected = os.path.normpath(folder_selected)
+        # Сохраняем сразу в конфиг
+        _save_config("download_path", folder_selected)
+        return folder_selected
+
+    return None
 
 
 def _get_cmd_output(command_list):
@@ -90,7 +158,13 @@ def check_software_versions():
 
 @eel.expose
 def download_project(course_id, project_name, student_name, project_index):
-    print(f"--- START DOWNLOAD: {project_name} for {student_name} ---")
+    # 1. Получаем путь из конфига
+    config = _load_config()
+    base_path = config.get("download_path")
+    if not base_path:
+        base_path = _get_default_download_path()
+
+    print(f"📥 Downloading to: {base_path}")
 
     # 1. Сначала ищем URL в data.json по ID курса и имени проекта
     # (В реальном проекте лучше передавать URL сразу из JS, но так безопаснее)
@@ -111,7 +185,7 @@ def download_project(course_id, project_name, student_name, project_index):
         return {"status": "error", "msg": "Ссылка на GitHub не найдена!"}
 
     # 2. Создаем папку (используем функцию из DIG-17)
-    folder_result = ensure_project_folder(course_id, student_name, project_name)
+    folder_result = ensure_project_folder(base_path, course_id, student_name, project_name)
     if folder_result['status'] == 'error':
         return folder_result
 
@@ -210,20 +284,34 @@ def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name).strip()
 
 
-def ensure_project_folder(course_name, student_name, project_name):
-    # Очищаем входные данные
+def ensure_project_folder(base_path, course_name, student_name, project_name):
+    # Очищаем имена от спецсимволов
     clean_course = sanitize_filename(course_name)
     clean_student = sanitize_filename(student_name)
     clean_project = sanitize_filename(project_name)
 
-    home_dir = os.path.expanduser('~')
+    # ЛОГИКА СТРУКТУРЫ:
+    # 1. base_path - то, что выбрал юзер (например, F:/)
+    # 2. "DigiSchool" - наш системный контейнер (чтобы легко находить установленное)
+    # 3. clean_course - группировка по курсу (Python, Web...)
+    # 4. clean_student - папка конкретного ученика
+    # 5. clean_project - папка проекта
+
+    # Если ты хочешь, чтобы ВСЕ проекты ученика были в одной папке независимо от курса,
+    # можно поменять местами clean_course и clean_student.
+    # Но пока оставим как было в Спринте 1 (Курс -> Ученик).
+
     full_path = os.path.join(
-        home_dir, 'Documents', "DigiSchool",
-        clean_course, clean_student, clean_project
+        base_path,
+        "DigiSchool",  # <--- ВОТ ЭТО МЫ ВЕРНУЛИ
+        clean_course,
+        clean_student,
+        clean_project
     )
 
     try:
         os.makedirs(full_path, exist_ok=True)
+        print(f"📂 Folder ready: {full_path}")  # Лог для контроля
         return {"status": "success", "path": full_path}
     except Exception as e:
         return {"status": "error", "msg": str(e)}

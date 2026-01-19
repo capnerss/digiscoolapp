@@ -45,6 +45,13 @@
 
             <input type="text" id="student-name" class="student-name-input" placeholder="Ваше имя (например: Alex)">
         </header>
+            <div class="settings-panel">
+                <label>Install Location:</label>
+            <div class="path-control">
+            <input type="text" id="install-path" readonly value="Loading..." />
+            <button onclick="changeFolder()" class="btn-secondary">📂 Change</button>
+            </div>
+            </div>
 
             <div id="projects-list" class="projects-list">
                 </div>

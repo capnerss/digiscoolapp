@@ -1,0 +1,22 @@
+[
+  {
+    "id": "java_course",
+    "title": "Minecraft Java 1.18",
+    "projects": [
+       {
+         "name": "My Epic Sword",
+         "github_url": "https://github.com/capnerss/digiscool/archive/refs/heads/main.zip"
+       }
+    ]
+  },
+  {
+    "id": "unity_course",
+    "title": "Unity Junior",
+    "projects": [
+      {
+        "name": "Adventure Game",
+        "github_url": "https://github.com/Arkudaa/DigitalYouth2022/archive/refs/heads/main.zip"
+      }
+    ]
+  }
+]

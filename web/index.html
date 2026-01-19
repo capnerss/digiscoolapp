@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script type="text/javascript" src="/eel.js"></script>
+    <title>DigiScool</title>
+</head>
+<body>
+<button onclick="callPython()">Start</button>
+ <h2 id="result"></h2>
+
+ <script>
+     async function callPython(){
+         let output = await eel.hello_world()();
+         document.getElementById("result").innerHTML = output;
+     }
+ </script>
+</body>
+</html>

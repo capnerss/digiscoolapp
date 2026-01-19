@@ -45,13 +45,35 @@ function openCourse(courseId) {
     const projectsContainer = document.getElementById('projects-list');
     projectsContainer.innerHTML = ''; // Очищаем старое
 
-    course.projects.forEach(proj => {
+
+    // Очищаем и поле имени при открытии нового курса
+    document.getElementById('student-name').value = '';
+
+    course.projects.forEach((proj, index) => {
+        // Создаем уникальные ID для элементов этого проекта
+        // Например: progress-bar-0, status-text-0
+        const progressBarId = `progress-bar-${index}`;
+        const statusTextId = `status-text-${index}`;
+        const containerId = `progress-container-${index}`;
+
         const projectHtml = `
             <div class="project-item">
                 <div class="project-info">
                     <h3>${proj.name}</h3>
+                    
+                    <div id="${containerId}" class="progress-container">
+                        <div class="progress-info">
+                            <span id="${statusTextId}">Ожидание...</span>
+                            <span></span>
+                        </div>
+                        <div class="progress-track">
+                            <div id="${progressBarId}" class="progress-fill"></div>
+                        </div>
+                    </div>
+
                 </div>
-                <button class="btn-download" onclick="alert('Скоро здесь будет скачивание!')">
+                
+                <button class="btn-download" onclick="startDownload('${course.id}', '${proj.name}', ${index})">
                     Скачать
                 </button>
             </div>
@@ -68,4 +90,17 @@ function openCourse(courseId) {
 function goBack() {
     document.getElementById('details-view').style.display = 'none';
     document.getElementById('main-view').style.display = 'block';
+}
+
+
+function startDownload(courseId, projectName, index) {
+    const name = document.getElementById('student-name').value;
+    if (!name) {
+        alert("Пожалуйста, введите имя!");
+        return;
+    }
+
+    // Тест визуализации (покажем бар)
+    document.getElementById(`progress-container-${index}`).style.display = 'block';
+    console.log(`Скачиваем ${projectName} для ${name}`);
 }

@@ -9,13 +9,30 @@
 </head>
 <body>
     <div class="container">
+
+        <div id="main-view">
+            <header>
+                <h1>Доступные курсы</h1>
+                <p>Выберите курс, чтобы начать работу</p>
+            </header>
+            <div id="courses-grid" class="courses-grid">
+                </div>
+        </div>
+
+        <div id="details-view" style="display: none;">
+            <button class="btn-back" onclick="goBack()">← Назад к курсам</button>
+
         <header>
-            <h1>Доступные курсы</h1>
-            <p>Выберите курс, чтобы начать работу</p>
+            <h1 id="course-title">Название курса</h1>
+            <p>Введите имя и выберите проект:</p>
+
+            <input type="text" id="student-name" class="student-name-input" placeholder="Ваше имя (например: Alex)">
         </header>
 
-        <div id="courses-grid" class="courses-grid">
-            </div>
+            <div id="projects-list" class="projects-list">
+                </div>
+        </div>
+
     </div>
 <button onclick="callPython()">Start</button>
  <h2 id="result"></h2>

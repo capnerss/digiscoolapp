@@ -64,3 +64,82 @@ header h1 {
     font-size: 14px;
     margin: 0;
 }
+/* Кнопка Назад */
+.btn-back {
+    background: none;
+    border: none;
+    color: #3498db;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+.btn-back:hover {
+    text-decoration: underline;
+}
+
+/* Список проектов (простой список, не сетка) */
+.project-item {
+    background: white;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    display: flex;
+    justify-content: space-between; /* Название слева, кнопка справа */
+    align-items: center;
+}
+
+.btn-download {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-download:hover {
+    background-color: #219150;
+}
+/* --- Поле ввода имени (добавим его для красоты) --- */
+.student-name-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box; /* Чтобы padding не ломал ширину */
+}
+
+/* --- PROGRESS BAR (Суть задачи) --- */
+.progress-container {
+    margin-top: 15px;
+    display: none; /* Скрыт по умолчанию, покажем JS-ом при скачивании */
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+.progress-track {
+    width: 100%;
+    height: 8px;
+    background-color: #e0e0e0; /* Серый фон */
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%; /* Будет меняться через JS */
+    background-color: #3498db; /* Синий цвет (или #2ecc71 зеленый) */
+    transition: width 0.3s ease; /* Плавная анимация движения */
+}

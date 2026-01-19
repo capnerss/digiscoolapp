@@ -97,38 +97,37 @@ async function startDownload(courseId, projectName, index) {
     const nameInput = document.getElementById('student-name');
     const name = nameInput.value;
 
-    // Валидация: имя обязательно
     if (!name) {
-        alert("Palun sisesta oma nimi! (Пожалуйста, введите имя)");
-        nameInput.focus(); // Ставим курсор в поле
+        alert("Пожалуйста, введите имя!");
         return;
     }
 
-    // 1. Показываем контейнер прогресс-бара
+    // 1. Показываем бар
     const container = document.getElementById(`progress-container-${index}`);
     container.style.display = 'block';
 
-    // 2. Сбрасываем полоску в 0 (на случай повторного скачивания)
-    update_ui_progress(index, 0, "Ühendamine... (Соединение)");
-
-    // 3. Блокируем кнопку, чтобы не нажали 10 раз
-    // Ищем кнопку внутри родительского блока (немного магии DOM)
-    // Или можно было дать кнопке ID, но так быстрее:
+    // Блокируем кнопку
     const btn = container.parentElement.querySelector('.btn-download');
     if (btn) btn.disabled = true;
 
-    // --- ЗДЕСЬ БУДЕТ ВЫЗОВ PYTHON (в следующей задаче) ---
-    // Пока просто эмулируем работу для теста DIG-15
-    console.log(`Call Python: download('${courseId}', '${projectName}', '${name}', ${index})`);
+    console.log("Вызываю Python..."); // Лог для проверки в браузере
 
-    // ВРЕМЕННЫЙ ТЕСТ (Удалишь, когда будем делать DIG-16)
-    // Эмулируем, как Python дергает нашу новую функцию
-    setTimeout(() => update_ui_progress(index, 20, "Laadimine..."), 500);
-    setTimeout(() => update_ui_progress(index, 50, "Pakkimine..."), 1500);
-    setTimeout(() => {
-        update_ui_progress(index, 100, "Valmis!");
-        if (btn) btn.disabled = false; // Разблокируем кнопку
-    }, 2500);
+    // 2. ЗОВЕМ PYTHON (Вот этого могло не хватать)
+    // Мы передаем ID курса, Имя проекта, Имя студента и Индекс (для прогресс-бара)
+    let result = await eel.download_project(courseId, projectName, name, index)();
+
+    // 3. Смотрим результат
+    console.log("Ответ от Python:", result);
+
+    if (result && result.status === "success") {
+        alert("Папка создана: " + result.path);
+        // Тут можно поставить прогресс на 100%
+        update_ui_progress(index, 100, "Готово!");
+    } else {
+        alert("Ошибка: " + (result ? result.msg : "Неизвестная ошибка"));
+    }
+
+    if (btn) btn.disabled = false;
 }
 // Делаем функцию доступной, чтобы Python мог её вызывать
 eel.expose(update_ui_progress);

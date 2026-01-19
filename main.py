@@ -6,81 +6,86 @@ import requests
 import zipfile
 import io
 import subprocess
+import sys
 
 
 def _get_cmd_output(command_list):
     """
-    Внутренняя функция для запуска команды в терминале.
-    Скрывает черное окно консоли на Windows.
+    Внутренняя функция: запускает команду скрытно и возвращает текст вывода.
+    Работает и с stdout, и с stderr (так как Java пишет версию в stderr).
     """
     startupinfo = None
 
-    # Специфика Windows: подавляем появление черного окна
-    if os.name == 'nt':
+    # Специфика Windows: скрываем черное окно консоли
+    if sys.platform == "win32":
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
 
     try:
-        # Запускаем процесс
         result = subprocess.run(
             command_list,
-            stdout=subprocess.PIPE,  # Перехват обычного вывода
-            stderr=subprocess.PIPE,  # Перехват ошибок (Java пишет версию сюда)
-            text=True,  # Получаем сразу строки, а не байты
-            startupinfo=startupinfo  # Применяем настройки скрытия окна
+            capture_output=True,  # Перехватываем вывод
+            text=True,  # Автоматически декодируем байты в строки
+            startupinfo=startupinfo,
+            check=False  # Не выбрасывать ошибку, если код возврата != 0
         )
-
-        # Если код возврата 0 (Успех), возвращаем вывод
-        if result.returncode == 0:
-            # Некоторые программы (Java) пишут версию в stderr, другие в stdout.
-            # Берем то, что не пустое.
-            return result.stdout.strip() or result.stderr.strip()
-        return None
+        # Объединяем stdout и stderr, чтобы найти версию везде
+        return (result.stdout + result.stderr).strip()
 
     except FileNotFoundError:
-        return None  # Команда не найдена (программа не установлена)
-    except Exception as e:
-        print(f"Error checking {command_list}: {e}")
+        # Программа не найдена в PATH
         return None
+    except Exception as e:
+        print(f"Error checking {command_list[0]}: {e}")
+        return None
+
+
+def _extract_version(output_text):
+    """
+    Ищет паттерн версии (например, 1.8.0, 17.0.1, 20.5.0) в тексте.
+    """
+    if not output_text:
+        return None
+
+    # Regex: ищет цифры с точками (минимум X.Y)
+    # Пример совпадения: "17.0.2" из "openjdk version 17.0.2 2022-01-18"
+    match = re.search(r'(\d+\.\d+(\.\d+)?)', output_text)
+    if match:
+        return match.group(1)
+    return "Unknown"
 
 
 @eel.expose
 def check_software_versions():
-    """
-    Проверяет версии Java, Node.js и Git.
-    Возвращает словарь со статусами.
-    """
-    print("--- Проверка окружения... ---")
+    print("Checking system environment...")  # Лог в консоль разработчика
 
-    status = {
-        "java": {"installed": False, "version": ""},
-        "node": {"installed": False, "version": ""},
-        "git": {"installed": False, "version": ""}
+    # Список команд для проверки
+    checks = {
+        "java": ["java", "-version"],
+        "node": ["node", "-v"],
+        "git": ["git", "--version"]
     }
 
-    # 1. Проверка Java (java -version)
-    java_out = _get_cmd_output(["java", "-version"])
-    if java_out:
-        status["java"]["installed"] = True
-        # Парсим первую строку, например: "openjdk version 17.0.1..."
-        # Берем только первую строку для красоты
-        status["java"]["version"] = java_out.split('\n')[0]
+    report = {}
 
-    # 2. Проверка Node.js (node -v)
-    node_out = _get_cmd_output(["node", "-v"])
-    if node_out:
-        status["node"]["installed"] = True
-        status["node"]["version"] = node_out  # Обычно просто "v16.13.0"
+    for tool, cmd in checks.items():
+        raw_output = _get_cmd_output(cmd)
 
-    # 3. Проверка Git (git --version)
-    git_out = _get_cmd_output(["git", "--version"])
-    if git_out:
-        status["git"]["installed"] = True
-        # git output: "git version 2.33.0.windows.1" -> Очистим лишнее
-        status["git"]["version"] = git_out.replace("git version", "").strip()
+        if raw_output:
+            version = _extract_version(raw_output)
+            report[tool] = {
+                "installed": True,
+                "version": version,
+                "raw": raw_output[:50]  # Для отладки (обрезаем длинные строки)
+            }
+        else:
+            report[tool] = {
+                "installed": False,
+                "version": None
+            }
 
-    print(f"Результат проверки: {status}")
-    return status
+    return report
 
 
 @eel.expose

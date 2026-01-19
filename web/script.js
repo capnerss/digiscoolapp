@@ -9,38 +9,65 @@ window.onload = async function() {
 };
 
 
-// НОВАЯ ФУНКЦИЯ
+// Функция запуска проверки системы
 async function checkSystem() {
-    console.log("Checking system requirements...");
+    console.log("🔍 Starting Environment Check...");
 
-    // 1. Зовем Python (функцию из Task 1)
-    const status = await eel.check_software_versions()();
-    console.log("System Status:", status);
+    // 1. Устанавливаем статус "loading" перед запросом (UX)
+    const tools = ['java', 'node', 'git'];
+    tools.forEach(tool => setStatusLoading(tool));
 
-    // 2. Функция-помощник для обновления одного значка
-    updateBadge('java', status.java);
-    updateBadge('node', status.node);
-    updateBadge('git', status.git);
+    try {
+        // 2. Вызываем Python функцию (await, так как это асинхронный вызов через Eel)
+        // Ожидаем ответ вида: {"java": {"installed": true, "version": "17.0"}, ...}
+        const results = await eel.check_software_versions()();
+
+        console.log("📊 System Check Results:", results);
+
+        // 3. Обновляем UI на основе данных
+        for (const [tool, data] of Object.entries(results)) {
+            updateStatusUI(tool, data);
+        }
+
+    } catch (error) {
+        console.error("❌ Failed to check system requirements:", error);
+        // В случае критической ошибки помечаем всё красным
+        tools.forEach(tool => updateStatusUI(tool, { installed: false, version: "Error" }));
+    }
 }
 
-function updateBadge(idName, info) {
-    const el = document.getElementById(`status-${idName}`);
-    const iconSpan = el.querySelector('.icon');
+// Хелпер для установки UI (Clean Code: разделяем логику и представление)
+function updateStatusUI(toolName, data) {
+    const container = document.getElementById(`status-${toolName}`);
+    if (!container) return;
 
-    // Удаляем старые классы (checking)
-    el.classList.remove('checking', 'success', 'error');
+    const iconSpan = container.querySelector('.status-icon');
+    const versionSpan = container.querySelector('.status-version');
 
-    if (info.installed) {
-        // УСПЕХ ✅
-        el.classList.add('success');
-        iconSpan.innerText = '✅';
-        // Показываем версию при наведении
-        el.title = `Installed: ${info.version}`;
+    // Сброс классов
+    container.classList.remove('status-loading', 'status-ok', 'status-fail');
+
+    if (data.installed) {
+        // Успех ✅
+        container.classList.add('status-ok');
+        iconSpan.textContent = '✅'; // Или используй иконку FontAwesome
+        versionSpan.textContent = data.version;
+        container.title = `${toolName} installed: v${data.version}`; // Tooltip при наведении
     } else {
-        // ОШИБКА ❌
-        el.classList.add('error');
-        iconSpan.innerText = '❌';
-        el.title = "Not installed! (Puudub)";
+        // Ошибка ❌
+        container.classList.add('status-fail');
+        iconSpan.textContent = '❌';
+        versionSpan.textContent = 'Not Found';
+        container.title = `${toolName} is missing!`;
+    }
+}
+
+// Хелпер для состояния загрузки
+function setStatusLoading(toolName) {
+    const container = document.getElementById(`status-${toolName}`);
+    if (container) {
+        container.classList.add('status-loading');
+        container.querySelector('.status-icon').textContent = '⏳';
     }
 }
 

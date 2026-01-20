@@ -1,285 +1,224 @@
-/* Общие настройки страницы */
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f4f7f6;
+:root {
+    --bg-dark: #1e1e1e;       /* Основной фон */
+    --bg-sidebar: #121212;    /* Фон сайдбара */
+    --bg-panel: #252526;      /* Фон строк */
+    --text-main: #ffffff;
+    --text-muted: #aaaaaa;
+    --accent: #5cb85c;        /* Зеленый (как на скрине) */
+    --border: #333333;
+    --hover: #2a2d2e;
+}
+
+body, html {
     margin: 0;
-    padding: 20px;
-    color: #333;
-}
-
-.container {
-    max-width: 1000px;
-    margin: 0 auto; /* Центрирование контейнера */
-}
-
-header {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-header h1 {
-    color: #2c3e50;
-    margin-bottom: 5px;
-}
-
-/* --- GRID LAYOUT (Суть задачи) --- */
-.courses-grid {
-    display: grid;
-    /* Магия адаптивности: колонки создаются сами, минимум 200px шириной */
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 25px; /* Расстояние между карточками */
-}
-
-/* --- Стили Карточки --- */
-.course-card {
-    background: white;
-    border-radius: 12px;
-    padding: 25px;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid #eee;
-}
-
-/* Эффект при наведении мышки */
-.course-card:hover {
-    transform: translateY(-5px); /* Карточка чуть всплывает */
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    border-color: #3498db;
-}
-
-.card-icon {
-    font-size: 40px; /* Размер эмодзи */
-    margin-bottom: 15px;
-}
-
-.course-card h3 {
-    margin: 10px 0;
-    font-size: 18px;
-}
-
-.course-card p {
-    color: #7f8c8d;
-    font-size: 14px;
-    margin: 0;
-}
-/* Кнопка Назад */
-.btn-back {
-    background: none;
-    border: none;
-    color: #3498db;
-    font-size: 16px;
-    cursor: pointer;
     padding: 0;
-    margin-bottom: 20px;
-}
-
-.btn-back:hover {
-    text-decoration: underline;
-}
-
-/* Список проектов (простой список, не сетка) */
-.project-item {
-    background: white;
-    padding: 20px;
-    margin-bottom: 15px;
-    border-radius: 8px;
-    border: 1px solid #eee;
-    display: flex;
-    justify-content: space-between; /* Название слева, кнопка справа */
-    align-items: center;
-}
-
-.btn-download {
-    background-color: #27ae60;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.btn-download:hover {
-    background-color: #219150;
-}
-/* --- Поле ввода имени (добавим его для красоты) --- */
-.student-name-input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 14px;
-    box-sizing: border-box; /* Чтобы padding не ломал ширину */
-}
-
-/* --- PROGRESS BAR (Суть задачи) --- */
-.progress-container {
-    margin-top: 15px;
-    display: none; /* Скрыт по умолчанию, покажем JS-ом при скачивании */
-}
-
-.progress-info {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: #555;
-    margin-bottom: 5px;
-}
-
-.progress-track {
-    width: 100%;
-    height: 8px;
-    background-color: #e0e0e0; /* Серый фон */
-    border-radius: 4px;
+    height: 100%;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
     overflow: hidden;
 }
 
-.progress-fill {
-    height: 100%;
-    width: 0%; /* Будет меняться через JS */
-    background-color: #3498db; /* Синий цвет (или #2ecc71 зеленый) */
-    transition: width 0.3s ease; /* Плавная анимация движения */
+/* --- LAYOUT --- */
+.app-container {
+    display: flex;
+    height: 100vh;
 }
-/* --- System Status Bar --- */
-.system-status-bar {
-    background-color: #ffffff;
-    border-radius: 8px;
+
+/* --- SIDEBAR (LEFT) --- */
+.sidebar {
+    width: 250px;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
     padding: 15px 20px;
-    margin-bottom: 30px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: background 0.2s;
+    color: var(--text-muted);
+    border-left: 4px solid transparent;
+}
+
+.menu-item:hover {
+    background-color: var(--hover);
+    color: var(--text-main);
+}
+
+.menu-item.active {
+    background-color: var(--hover);
+    color: var(--text-main);
+    border-left: 4px solid var(--accent); /* Зеленая полоска слева */
+}
+
+/* Имитация иконок курсов */
+.icon-box {
+    width: 32px;
+    height: 32px;
+    background: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+.icon-mc-118 { background: #4caf50; color: #fff; } /* Зеленый */
+.icon-roblox { background: #e53935; color: #fff; } /* Красный */
+.icon-python { background: #ffeb3b; color: #000; } /* Желтый */
+
+/* --- MAIN CONTENT (RIGHT) --- */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.top-bar {
+    height: 50px;
+    background-color: var(--bg-sidebar);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-left: 5px solid #f1c40f; /* По умолчанию желтый (проверка) */
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
 }
 
-.status-label {
+.logo-area {
     font-weight: bold;
-    color: #555;
-    font-size: 14px;
+    font-size: 1.2rem;
+    letter-spacing: 1px;
 }
 
-.status-items {
-    display: flex;
-    gap: 15px; /* Расстояние между значками */
+.nav-back {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
 }
 
-/* Базовый стиль значка */
-.status-badge {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: help; /* Курсор-вопросик, намекает что можно навести */
-    transition: all 0.3s ease;
-    border: 1px solid transparent;
+/* Scroll area for projects */
+.content-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* --- PROJECT LIST --- */
+.project-row {
+    background-color: var(--bg-panel);
+    padding: 15px;
+    margin-bottom: 10px;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 5px;
+    border-radius: 2px;
 }
 
-/* --- Состояния (Цвета) --- */
-
-/* 1. Checking (Желтый) */
-.status-badge.checking {
-    background-color: #fff3cd;
-    color: #856404;
-    border-color: #ffeeba;
+.project-name {
+    font-size: 1rem;
+    font-weight: 500;
 }
 
-/* 2. Success (Зеленый) */
-.status-badge.success {
-    background-color: #d4edda;
-    color: #155724;
-    border-color: #c3e6cb;
-}
-
-/* 3. Error (Красный) */
-.status-badge.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border-color: #f5c6cb;
-}
-/* style.css */
-
-.system-status-panel {
-    display: flex;
-    gap: 15px;
-    background: #f5f5f5; /* Легкий фон панели */
-    padding: 5px 10px;
-    border-radius: 8px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); /* Вдавленный эффект */
-    font-family: 'Segoe UI', sans-serif;
-    font-size: 0.9rem;
-}
-
-.status-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    cursor: help; /* Курсор вопроса при наведении */
-    transition: background 0.3s;
-}
-
-/* Цветовая индикация */
-.status-ok {
-    color: #2ecc71; /* Зеленый */
-    font-weight: 600;
-}
-
-.status-fail {
-    color: #e74c3c; /* Красный */
-    background: rgba(231, 76, 60, 0.1); /* Легкая красная подложка */
-}
-
-.status-loading {
-    color: #f39c12; /* Оранжевый */
-    opacity: 0.7;
-}
-
-.status-version {
-    font-size: 0.8em;
-    color: #666;
-    margin-left: 3px;
-}
-/* style.css */
-.settings-panel {
-    margin: 20px 0;
-    padding: 10px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
-
-.path-control {
+.project-actions {
     display: flex;
     gap: 10px;
-    margin-top: 5px;
 }
 
-#install-path {
-    flex-grow: 1;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #f9f9f9;
-    color: #555;
-    font-family: monospace; /* Чтобы путь выглядел технично */
-}
-
-.btn-secondary {
-    background: #e0e0e0;
-    border: none;
-    padding: 0 15px;
-    border-radius: 4px;
+.btn-action {
+    background: transparent;
+    border: 1px solid #444;
+    color: #888;
+    padding: 6px 12px;
+    font-size: 0.75rem;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 700;
+    transition: all 0.2s;
 }
-.btn-secondary:hover {
-    background: #d0d0d0;
+
+.btn-action:hover {
+    border-color: #666;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    border-color: #e53935;
+    color: #e53935;
+}
+
+/* --- CREATE NEW PROJECT --- */
+.create-section {
+    margin-top: 40px;
+    border-top: 1px solid var(--border);
+}
+
+.section-header {
+    background: #2d2d2d;
+    padding: 10px 15px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+}
+
+.template-item {
+    padding: 15px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.template-item:hover {
+    background-color: var(--hover);
+}
+
+.template-item.selected {
+    background-color: #2a2d2e; /* Чуть светлее */
+}
+
+.check-icon {
+    color: var(--accent);
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+.create-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-dark {
+    background: #111;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 2px;
+}
+
+.btn-add {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    width: 30px;
+    height: 30px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+}
+.btn-add:hover {
+    opacity: 0.9;
 }

@@ -1,254 +1,324 @@
-// Глобальная переменная для хранения загруженных курсов
+// Глобальные переменные
 let allCourses = [];
+let currentCourse = null;
 
+// --- 1. ЗАПУСК (INITIALIZATION) ---
+window.addEventListener('load', async () => {
+    console.log("🚀 App Starting...");
 
-window.onload = async function() {
-    // Сначала запускаем проверку системы
+    // 1. Проверяем систему (Старая добрая функция)
     await checkSystem();
-    await loadCourses();
-    await loadSettings();
-};
 
-// Загружаем настройки при старте
-async function loadSettings() {
-    const settings = await eel.get_current_settings()();
-    document.getElementById('install-path').value = settings.download_path;
+    // 2. Грузим настройки (Путь установки)
+    await loadSettings();
+
+    // 3. Загружаем курсы
+    await loadCourses();
+});
+
+// --- 2. ЛОГИКА КУРСОВ (CORE LOGIC) ---
+
+async function loadCourses() {
+    try {
+        allCourses = await eel.get_courses()();
+        console.log("📚 Courses loaded:", allCourses.length);
+
+        renderSidebar(allCourses);
+
+        // Авто-выбор первого курса
+        if (allCourses.length > 0) {
+            selectCourse(allCourses[0].id);
+        }
+    } catch (e) {
+        console.error("Critical Error loading courses:", e);
+        document.body.innerHTML = `<h2 style="color:red; padding:20px;">Ошибка связи с Python backend. Проверьте консоль.</h2>`;
+    }
 }
 
-// Вызов диалога выбора папки
-async function changeFolder() {
-    // Меняем текст кнопки, чтобы показать реакцию
-    const btn = document.querySelector('.btn-secondary');
-    const originalText = btn.textContent;
-    btn.textContent = 'Opening...';
+function renderSidebar(courses) {
+    const container = document.querySelector('.sidebar-menu');
+    if (!container) return; // Защита если HTML не тот
 
-    // Вызываем Python (окно откроется поверх браузера)
-    const newPath = await eel.choose_folder()();
+    container.innerHTML = '';
 
-    if (newPath) {
-        // Если выбрали папку — обновляем поле
-        document.getElementById('install-path').value = newPath;
-        console.log("New path saved:", newPath);
+    courses.forEach(course => {
+        const item = document.createElement('div');
+        item.className = 'menu-item';
+        item.id = `menu-${course.id}`;
+        item.onclick = () => selectCourse(course.id);
+
+        // Простая иконка (первые 2 буквы)
+        const shortName = (course.title || "??").substring(0, 2).toUpperCase();
+
+        item.innerHTML = `
+            <div class="icon-box" style="background: ${getColorForCourse(course.id)}">${shortName}</div>
+            <span class="menu-label">${course.title}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+async function selectCourse(courseId) {
+    console.log("👉 Selected course:", courseId);
+
+    currentCourse = allCourses.find(c => c.id === courseId);
+    if (!currentCourse) return;
+
+    // Подсветка в меню
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+    const activeItem = document.getElementById(`menu-${courseId}`);
+    if (activeItem) activeItem.classList.add('active');
+
+    // Рендер правой части (Список проектов для создания)
+    renderCreateSection(currentCourse);
+
+    // Рендер уже установленных (Safe Mode: если функции нет в Python, не упадем)
+    try {
+        await renderInstalledProjects(courseId);
+    } catch (e) {
+        console.warn("⚠️ Cannot load installed projects (maybe function missing in main.py):", e);
+        const list = document.querySelector('.section-list');
+        if (list) list.innerHTML = `<div style="padding:15px; color:#666;">Список установленных проектов недоступен</div>`;
+    }
+}
+
+// --- 3. СЕКЦИЯ "СОЗДАТЬ ПРОЕКТ" (CREATE NEW) ---
+
+function renderCreateSection(course) {
+    const container = document.querySelector('.template-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!course.projects || course.projects.length === 0) {
+        container.innerHTML = '<div style="padding:15px;">Нет доступных шаблонов</div>';
+        return;
     }
 
-    btn.textContent = originalText;
+    course.projects.forEach((proj, index) => {
+        const item = document.createElement('div');
+        item.className = 'template-item';
+
+        // Клик по строке
+        item.onclick = (e) => {
+            // Игнорируем клик, если нажали прямо в поле ввода или кнопку
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+            selectTemplateUI(item);
+        };
+
+        item.innerHTML = `
+            <div class="template-info">
+                <span class="tmpl-name" style="margin-left: 10px;">${proj.name}</span>
+            </div>
+            
+            <div class="create-controls" style="display:none; gap:10px;">
+                <input type="text" class="input-dark student-name" placeholder="Имя (напр. Alex)">
+                <button class="btn-add" onclick="startDownload('${proj.name}', this)">+</button>
+            </div>
+        `;
+
+        container.appendChild(item);
+
+        // Выбираем первый элемент сразу
+        if (index === 0) selectTemplateUI(item);
+    });
 }
-// Функция запуска проверки системы
+
+function selectTemplateUI(domElement) {
+    // Сброс всех
+    document.querySelectorAll('.template-item').forEach(el => {
+        el.classList.remove('selected');
+        const controls = el.querySelector('.create-controls');
+        const name = el.querySelector('.tmpl-name');
+        if (controls) controls.style.display = 'none';
+        if (name) name.style.fontWeight = 'normal';
+    });
+
+    // Активация текущего
+    domElement.classList.add('selected');
+    const controls = domElement.querySelector('.create-controls');
+    const name = domElement.querySelector('.tmpl-name');
+
+    if (controls) {
+        controls.style.display = 'flex';
+        // Фокус на поле ввода через 50мс (чтобы браузер успел отрисовать)
+        setTimeout(() => {
+            const input = controls.querySelector('input');
+            if (input) input.focus();
+        }, 50);
+    }
+    if (name) name.style.fontWeight = 'bold';
+}
+
+// --- 4. СЕКЦИЯ "УСТАНОВЛЕННЫЕ ПРОЕКТЫ" (INSTALLED) ---
+
+async function renderInstalledProjects(courseId) {
+    const container = document.querySelector('.section-list');
+    if (!container) return;
+
+    container.innerHTML = '<div style="padding:10px; color:#666;">Поиск проектов...</div>';
+
+    // ВАЖНО: Тут может быть ошибка, если main.py старый
+    // eel.get_installed_projects вернет ошибку, которую мы ловим выше
+    const projects = await eel.get_installed_projects(courseId)();
+
+    container.innerHTML = ''; // Очищаем "Loading..."
+
+    if (!projects || projects.length === 0) {
+        container.innerHTML = '<div style="padding:15px; color:#555; font-style:italic;">Установленных проектов пока нет.</div>';
+        return;
+    }
+
+    projects.forEach(proj => {
+        // Защита от кривых путей Windows
+        const safePath = (proj.path || "").replace(/\\/g, '\\\\');
+
+        const row = document.createElement('div');
+        row.className = 'project-row';
+        row.innerHTML = `
+            <div>
+                <div class="project-name">${proj.name}</div>
+                <div style="font-size:0.75rem; color:#666;">Студент: ${proj.student}</div>
+            </div>
+            <div class="project-actions">
+                <button class="btn-action" onclick="eel.open_folder('${safePath}')">📂 FOLDER</button>
+            </div>
+        `;
+        container.appendChild(row);
+    });
+}
+
+// --- 5. ЛОГИКА СКАЧИВАНИЯ (DOWNLOAD) ---
+
+async function startDownload(projectName, btnElement) {
+    // 1. Ищем поле ввода рядом с нажатой кнопкой
+    const parent = btnElement.parentElement; // div.create-controls
+    const input = parent.querySelector('input');
+    const studentName = input.value.trim();
+
+    if (!studentName) {
+        alert("Пожалуйста, введите имя студента!");
+        input.focus();
+        return;
+    }
+
+    // 2. Блокируем кнопку
+    btnElement.disabled = true;
+    const originalText = btnElement.textContent;
+    btnElement.textContent = "⏳";
+
+    // 3. Запускаем
+    const courseId = currentCourse.id;
+    console.log(`📥 Start Download: ${courseId} / ${studentName} / ${projectName}`);
+
+    // Передаем index=0, так как у нас теперь нет списка карточек с индексами
+    const result = await eel.download_project(courseId, projectName, studentName, 0)();
+
+    // 4. Обработка результата
+    if (result.status === 'success') {
+        btnElement.textContent = "✔";
+        btnElement.style.backgroundColor = "#4caf50";
+
+        setTimeout(() => {
+            // Возвращаем как было
+            btnElement.textContent = originalText;
+            btnElement.disabled = false;
+            btnElement.style.backgroundColor = "";
+            input.value = ""; // Очищаем поле
+
+            // Обновляем список сверху
+            renderInstalledProjects(courseId);
+        }, 2000);
+    } else {
+        alert("Ошибка: " + result.msg);
+        btnElement.textContent = "❌";
+        setTimeout(() => {
+            btnElement.textContent = originalText;
+            btnElement.disabled = false;
+        }, 2000);
+    }
+}
+
+// Эту функцию вызывает Python (eel.update_ui_progress)
+eel.expose(update_ui_progress);
+function update_ui_progress(index, percent, message) {
+    console.log(`Progress: ${percent}% ${message}`);
+
+    // Ищем кнопку внутри АКТИВНОГО (selected) шаблона
+    const activeBtn = document.querySelector('.template-item.selected .btn-add');
+
+    if (activeBtn) {
+        // Превращаем кнопку в прогресс-бар
+        activeBtn.style.minWidth = "60px";
+        activeBtn.textContent = `${percent}%`;
+
+        if (percent >= 100) {
+            activeBtn.textContent = "OK";
+        }
+    }
+}
+
+// --- 6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (HELPERS) ---
+
+function getColorForCourse(id) {
+    const colors = {'minecraft': '#4caf50', 'python': '#ffeb3b', 'roblox': '#e53935', 'js': '#fbc02d'};
+    for (let key in colors) {
+        if (id.toLowerCase().includes(key)) return colors[key];
+    }
+    return '#4f46e5';
+}
+
+// Старая логика проверки системы (работает с header)
 async function checkSystem() {
-    console.log("🔍 Starting Environment Check...");
-
-    // 1. Устанавливаем статус "loading" перед запросом (UX)
-    const tools = ['java', 'node', 'git'];
-    tools.forEach(tool => setStatusLoading(tool));
-
     try {
-        // 2. Вызываем Python функцию (await, так как это асинхронный вызов через Eel)
-        // Ожидаем ответ вида: {"java": {"installed": true, "version": "17.0"}, ...}
         const results = await eel.check_software_versions()();
-
-        console.log("📊 System Check Results:", results);
-
-        // 3. Обновляем UI на основе данных
         for (const [tool, data] of Object.entries(results)) {
             updateStatusUI(tool, data);
         }
-
-    } catch (error) {
-        console.error("❌ Failed to check system requirements:", error);
-        // В случае критической ошибки помечаем всё красным
-        tools.forEach(tool => updateStatusUI(tool, { installed: false, version: "Error" }));
+    } catch (e) {
+        console.warn("System check failed:", e);
     }
 }
 
-// Хелпер для установки UI (Clean Code: разделяем логику и представление)
-function updateStatusUI(toolName, data) {
-    const container = document.getElementById(`status-${toolName}`);
-    if (!container) return;
+function updateStatusUI(tool, data) {
+    const el = document.getElementById(`status-${tool}`);
+    if (!el) return;
 
-    const iconSpan = container.querySelector('.status-icon');
-    const versionSpan = container.querySelector('.status-version');
-
-    // Сброс классов
-    container.classList.remove('status-loading', 'status-ok', 'status-fail');
+    // Ищем кружок внутри
+    const icon = el.querySelector('.status-icon');
 
     if (data.installed) {
-        // Успех ✅
-        container.classList.add('status-ok');
-        iconSpan.textContent = '✅'; // Или используй иконку FontAwesome
-        versionSpan.textContent = data.version;
-        container.title = `${toolName} installed: v${data.version}`; // Tooltip при наведении
+        if (icon) icon.textContent = '🟢';
+        el.title = `${tool}: v${data.version}`;
+        el.style.opacity = '1';
     } else {
-        // Ошибка ❌
-        container.classList.add('status-fail');
-        iconSpan.textContent = '❌';
-        versionSpan.textContent = 'Not Found';
-        container.title = `${toolName} is missing!`;
+        if (icon) icon.textContent = '🔴';
+        el.title = `${tool} не найден!`;
+        el.style.opacity = '0.5';
     }
 }
 
-// Хелпер для состояния загрузки
-function setStatusLoading(toolName) {
-    const container = document.getElementById(`status-${toolName}`);
-    if (container) {
-        container.classList.add('status-loading');
-        container.querySelector('.status-icon').textContent = '⏳';
-    }
-}
-
-
-async function loadCourses() {
-    const courses = await eel.get_courses()();
-    // Сохраняем данные глобально, чтобы использовать в других функциях
-    allCourses = courses;
-
-    const grid = document.getElementById('courses-grid');
-    grid.innerHTML = '';
-
-    courses.forEach(course => {
-        const projectCount = course.projects.length;
-        const suffix = projectCount === 1 ? "projekt" : "projekti";
-
-        const cardHtml = `
-            <div class="course-card" onclick="openCourse('${course.id}')">
-                <div class="card-icon">📚</div> 
-                <h3>${course.title}</h3>
-                <p>${projectCount} ${suffix}</p>
-            </div>
-        `;
-        grid.innerHTML += cardHtml;
-    });
-}
-
-// 1. Функция открытия курса
-function openCourse(courseId) {
-    // Находим нужный курс в массиве по ID
-    const course = allCourses.find(c => c.id === courseId);
-
-    if (!course) {
-        console.error("Курс не найден:", courseId);
-        return;
-    }
-
-    // Заполняем заголовок
-    document.getElementById('course-title').innerText = course.title;
-
-    // Генерируем список проектов
-    const projectsContainer = document.getElementById('projects-list');
-    projectsContainer.innerHTML = ''; // Очищаем старое
-
-
-    // Очищаем и поле имени при открытии нового курса
-    document.getElementById('student-name').value = '';
-
-    course.projects.forEach((proj, index) => {
-        // Создаем уникальные ID для элементов этого проекта
-        // Например: progress-bar-0, status-text-0
-        const progressBarId = `progress-bar-${index}`;
-        const statusTextId = `status-text-${index}`;
-        const containerId = `progress-container-${index}`;
-
-        const projectHtml = `
-            <div class="project-item">
-                <div class="project-info">
-                    <h3>${proj.name}</h3>
-                    
-                    <div id="${containerId}" class="progress-container">
-                        <div class="progress-info">
-                            <span id="${statusTextId}">Ожидание...</span>
-                            <span></span>
-                        </div>
-                        <div class="progress-track">
-                            <div id="${progressBarId}" class="progress-fill"></div>
-                        </div>
-                    </div>
-
-                </div>
-                
-                <button class="btn-download" onclick="startDownload('${course.id}', '${proj.name}', ${index})">
-                    Скачать
-                </button>
-            </div>
-        `;
-        projectsContainer.innerHTML += projectHtml;
-    });
-
-    // ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ (Суть задачи)
-    document.getElementById('main-view').style.display = 'none';
-    document.getElementById('details-view').style.display = 'block';
-}
-
-// 2. Функция "Назад"
-function goBack() {
-    document.getElementById('details-view').style.display = 'none';
-    document.getElementById('main-view').style.display = 'block';
-}
-
-
-async function startDownload(courseId, projectName, index) {
-    const nameInput = document.getElementById('student-name');
-    const name = nameInput.value;
-
-    if (!name) {
-        alert("Пожалуйста, введите имя!");
-        return;
-    }
-
-    // 1. Показываем бар
-    const container = document.getElementById(`progress-container-${index}`);
-    container.style.display = 'block';
-
-    // Блокируем кнопку
-    const btn = container.parentElement.querySelector('.btn-download');
-    if (btn) btn.disabled = true;
-
-    console.log("Вызываю Python..."); // Лог для проверки в браузере
-
-    // 2. ЗОВЕМ PYTHON (Вот этого могло не хватать)
-    // Мы передаем ID курса, Имя проекта, Имя студента и Индекс (для прогресс-бара)
-    let result = await eel.download_project(courseId, projectName, name, index)();
-
-    // 3. Смотрим результат
-    console.log("Ответ от Python:", result);
-
-    if (result && result.status === "success") {
-        alert("Папка создана: " + result.path);
-        // Тут можно поставить прогресс на 100%
-        update_ui_progress(index, 100, "Готово!");
-    } else {
-        alert("Ошибка: " + (result ? result.msg : "Неизвестная ошибка"));
-    }
-
-    if (btn) btn.disabled = false;
-}
-// Делаем функцию доступной, чтобы Python мог её вызывать
-eel.expose(update_ui_progress);
-
-/**
- * Обновляет прогресс-бар конкретного проекта.
- * @param {number} index - Индекс проекта в списке (0, 1, 2...)
- * @param {number} percent - Процент загрузки (0-100)
- * @param {string} text - Текстовое сообщение (например, "Скачивание...")
- */
-function update_ui_progress(index, percent, text) {
-    // 1. Находим элементы по ID, которые мы создали в DIG-14
-    const progressBar = document.getElementById(`progress-bar-${index}`);
-    const statusText = document.getElementById(`status-text-${index}`);
-
-    if (progressBar && statusText) {
-        // 2. Меняем ширину полоски
-        progressBar.style.width = percent + '%';
-
-        // 3. Меняем текст
-        statusText.innerText = text;
-
-        // 4. Маленькая красота: если 100%, меняем цвет на зеленый
-        if (percent >= 100) {
-            progressBar.style.backgroundColor = '#2ecc71'; // Зеленый
-        } else {
-             // Возвращаем синий (на случай, если качаем второй раз)
-            progressBar.style.backgroundColor = '#3498db';
+// Старая логика настроек (работает с header)
+async function loadSettings() {
+    try {
+        const settings = await eel.get_current_settings()();
+        const label = document.getElementById('install-path-label');
+        if (label) {
+            label.innerText = settings.download_path || "Документы";
+            label.title = settings.download_path;
         }
-    } else {
-        console.error(`Элементы прогресс-бара для индекса ${index} не найдены!`);
+    } catch (e) {
+        console.warn("Settings load failed:", e);
+    }
+}
+
+async function changeFolder() {
+    const newPath = await eel.choose_folder()();
+    if (newPath) {
+        const label = document.getElementById('install-path-label');
+        if (label) label.innerText = newPath;
+
+        // Перечитываем список проектов, если курс выбран
+        if (currentCourse) renderInstalledProjects(currentCourse.id);
     }
 }

@@ -5,59 +5,117 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
     <script type="text/javascript" src="/eel.js"></script>
-    <title>DigiScool</title>
+    <title>DigiSchool Launcher</title>
 </head>
 <body>
-    <div class="container">
 
-        <div id="main-view">
-            <header>
-                <h1>Доступные курсы</h1>
-                <p>Выберите курс, чтобы начать работу</p>
-            </header>
-            <div class="system-status-panel">
-    <div class="status-item" id="status-java">
-        <span class="status-icon">⚪</span> <span class="status-label">Java</span>
-        <span class="status-version">checking...</span> </div>
+    <div class="app-container">
 
-    <div class="status-item" id="status-node">
-        <span class="status-icon">⚪</span>
-        <span class="status-label">Node.js</span>
-        <span class="status-version">checking...</span>
-    </div>
-
-    <div class="status-item" id="status-git">
-        <span class="status-icon">⚪</span>
-        <span class="status-label">Git</span>
-        <span class="status-version">checking...</span>
-    </div>
-</div>
-            <div id="courses-grid" class="courses-grid">
+        <aside class="sidebar">
+            <div class="sidebar-menu">
+                <div class="menu-item active">
+                    <div class="icon-box icon-mc-118">1.18</div>
+                    <span class="menu-label">Minecraft</span>
                 </div>
-        </div>
 
-        <div id="details-view" style="display: none;">
-            <button class="btn-back" onclick="goBack()">← Назад к курсам</button>
-
-        <header>
-            <h1 id="course-title">Название курса</h1>
-            <p>Введите имя и выберите проект:</p>
-
-            <input type="text" id="student-name" class="student-name-input" placeholder="Ваше имя (например: Alex)">
-        </header>
-            <div class="settings-panel">
-                <label>Install Location:</label>
-            <div class="path-control">
-            <input type="text" id="install-path" readonly value="Loading..." />
-            <button onclick="changeFolder()" class="btn-secondary">📂 Change</button>
-            </div>
-            </div>
-
-            <div id="projects-list" class="projects-list">
+                <div class="menu-item">
+                    <div class="icon-box icon-mc-112">1.12</div>
+                    <span class="menu-label">Minecraft 1.12</span>
                 </div>
-        </div>
 
+                <div class="menu-item">
+                    <div class="icon-box icon-roblox">R</div>
+                    <span class="menu-label">Roblox</span>
+                </div>
+
+                <div class="menu-item">
+                    <div class="icon-box icon-python">Py</div>
+                    <span class="menu-label">Python</span>
+                </div>
+
+                <div class="menu-item">
+                    <div class="icon-box icon-js">JS</div>
+                    <span class="menu-label">JavaScript</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+
+            <header class="top-bar">
+    <div class="settings-area" style="display: flex; align-items: center; gap: 10px;">
+        <button onclick="changeFolder()" class="btn-icon" title="Change Install Folder">📂</button>
+        <span id="install-path-label" style="font-size: 0.7rem; color: #666; max-width: 150px; overflow: hidden; white-space: nowrap;">Loading...</span>
     </div>
-<script src="script.js"></script>
+
+    <div class="logo-area">{ DigiSchool }</div>
+
+    <div class="system-status" style="display: flex; gap: 15px; font-size: 0.8rem;">
+        <div id="status-java" title="Java"><span class="status-icon">⚪</span> J</div>
+        <div id="status-node" title="Node.js"><span class="status-icon">⚪</span> N</div>
+        <div id="status-git"  title="Git"><span class="status-icon">⚪</span> G</div>
+    </div>
+</header>
+
+            <div class="content-scroll-area">
+
+                <div class="section-list">
+                    <div class="project-row">
+                        <div class="project-name">luckymod</div>
+                        <div class="project-actions">
+                            <button class="btn-action">OPEN PROJECT ↗</button>
+                            <button class="btn-action">OPEN FOLDER 📂</button>
+                            <button class="btn-action btn-danger">🗑</button>
+                        </div>
+                    </div>
+
+                    <div class="project-row">
+                        <div class="project-name">oremod</div>
+                        <div class="project-actions">
+                            <button class="btn-action">OPEN PROJECT ↗</button>
+                            <button class="btn-action">OPEN FOLDER 📂</button>
+                            <button class="btn-action btn-danger">🗑</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="create-section">
+                    <div class="section-header">
+                        CREATE NEW PROJECT
+                        <span class="toggle-icon">▲</span>
+                    </div>
+
+                    <div class="template-list">
+                        <div class="template-item selected">
+                            <div class="template-info">
+                                <span class="check-icon">✔</span>
+                                <span class="tmpl-name">Forge Your Sword</span>
+                            </div>
+                            <div class="create-controls">
+                                <label>Name:</label>
+                                <input type="text" class="input-dark" placeholder="MySword">
+                                <button class="btn-add">+</button>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-info">
+                                <span class="tmpl-name" style="margin-left: 24px;">Power Ore</span>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-info">
+                                <span class="tmpl-name" style="margin-left: 24px;">Create a Creature</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>

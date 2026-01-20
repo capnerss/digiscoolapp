@@ -317,6 +317,55 @@ def ensure_project_folder(base_path, course_name, student_name, project_name):
         return {"status": "error", "msg": str(e)}
 
 
+# main.py
+
+@eel.expose
+def get_installed_projects(course_id):
+    """
+    Сканирует папку установки и возвращает список найденных проектов для конкретного курса.
+    Структура: base_path / DigiSchool / course_id / student_name / project_name
+    """
+    config = _load_config()
+    base_path = config.get("download_path") or _get_default_download_path()
+
+    # Путь к папке курса
+    course_path = os.path.join(base_path, "DigiSchool", sanitize_filename(course_id))
+
+    found_projects = []
+
+    if os.path.exists(course_path):
+        # Проходимся по всем студентам внутри курса
+        try:
+            students = os.listdir(course_path)
+            for student in students:
+                student_path = os.path.join(course_path, student)
+                if os.path.isdir(student_path):
+                    # Проходимся по проектам студента
+                    projects = os.listdir(student_path)
+                    for proj in projects:
+                        # Добавляем в список (можно добавить проверку на наличие файлов внутри)
+                        found_projects.append({
+                            "name": proj,
+                            "student": student,
+                            "path": os.path.join(student_path, proj),
+                            "course_id": course_id
+                        })
+        except Exception as e:
+            print(f"Error scanning projects: {e}")
+
+    return found_projects
+
+
+@eel.expose
+def open_folder(path):
+    """Открывает папку в проводнике (Explorer/Finder)"""
+    if sys.platform == "win32":
+        os.startfile(path)
+    elif sys.platform == "darwin":
+        subprocess.call(["open", path])
+    else:
+        subprocess.call(["xdg-open", path])
+
 if __name__ == '__main__':
     eel.init('web')
     eel.start('index.html', size=(1000, 700))

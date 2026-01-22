@@ -2,6 +2,7 @@
   {
     "id": "java_course",
     "title": "Minecraft Java 1.18",
+    "editor": "vscode",
     "projects": [
        {
          "name": "My Epic Sword",
@@ -12,6 +13,7 @@
   {
     "id": "unity_course",
     "title": "Unity Junior",
+    "editor": "unity",
     "projects": [
       {
         "name": "Adventure Game",

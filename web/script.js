@@ -170,9 +170,34 @@ async function renderInstalledProjects(courseId) {
     }
 
     projects.forEach(proj => {
-        // Защита от кривых путей Windows
+        // 1. Защита путей Windows (превращаем C:\Project в C:\\Project)
         const safePath = (proj.path || "").replace(/\\/g, '\\\\');
 
+        // 2. ОПРЕДЕЛЯЕМ ТИП РЕДАКТОРА
+        // Берем настройку из текущего курса (если не указано — по умолчанию vscode)
+        const editorType = currentCourse.editor || 'vscode';
+
+        // 3. НАСТРАИВАЕМ КНОПКУ ЗАПУСКА
+        let runButtonHTML = '';
+
+        if (editorType === 'unity') {
+            // Черная кнопка для Unity
+            runButtonHTML = `
+                <button class="btn-action" 
+                        style="background-color: #222; color: #fff; border-color: #444;"
+                        onclick="openProjectInEditor('${safePath}', 'unity', this)">
+                    OPEN UNITY 🧊
+                </button>`;
+        } else {
+            // Стандартная кнопка для VS Code
+            runButtonHTML = `
+                <button class="btn-action" 
+                        onclick="openProjectInEditor('${safePath}', 'vscode', this)">
+                    OPEN CODE 🔵
+                </button>`;
+        }
+
+        // 4. СОБИРАЕМ HTML СТРОКИ
         const row = document.createElement('div');
         row.className = 'project-row';
         row.innerHTML = `
@@ -181,6 +206,8 @@ async function renderInstalledProjects(courseId) {
                 <div style="font-size:0.75rem; color:#666;">Студент: ${proj.student}</div>
             </div>
             <div class="project-actions">
+                ${runButtonHTML}
+                
                 <button class="btn-action" onclick="eel.open_folder('${safePath}')">📂 FOLDER</button>
             </div>
         `;
@@ -280,21 +307,50 @@ async function checkSystem() {
     }
 }
 
+// Функция обновления иконок статуса
 function updateStatusUI(tool, data) {
     const el = document.getElementById(`status-${tool}`);
     if (!el) return;
 
-    // Ищем кружок внутри
     const icon = el.querySelector('.status-icon');
 
     if (data.installed) {
-        if (icon) icon.textContent = '🟢';
-        el.title = `${tool}: v${data.version}`;
+        // Успех
+        if (icon) {
+            icon.textContent = '🟢'; // Или используй CSS класс .status-ok
+            icon.style.textShadow = "0 0 5px #4caf50"; // Легкое свечение
+        }
         el.style.opacity = '1';
+        el.style.color = '#fff'; // Яркий белый текст
+        el.title = `OK: ${data.tooltip || data.version}`;
     } else {
-        if (icon) icon.textContent = '🔴';
-        el.title = `${tool} не найден!`;
-        el.style.opacity = '0.5';
+        // Ошибка / Не найдено
+        if (icon) {
+            icon.textContent = '🔴';
+        }
+        el.style.opacity = '0.6'; // Приглушаем
+        el.style.color = '#aaa';
+        el.title = `MISSING: ${tool} not found`;
+    }
+}
+
+// Убедись, что checkSystem вызывает Python и передает данные сюда
+async function checkSystem() {
+    console.log("Checking environment...");
+    try {
+        const results = await eel.check_software_versions()();
+        console.log("Env Results:", results);
+
+        // Список ключей должен совпадать с Python report и HTML IDs
+        const tools = ['java', 'vscode', 'unity', 'visualstudio', 'mcedu'];
+
+        tools.forEach(tool => {
+            if (results[tool]) {
+                updateStatusUI(tool, results[tool]);
+            }
+        });
+    } catch (e) {
+        console.warn("System check failed:", e);
     }
 }
 
@@ -321,4 +377,33 @@ async function changeFolder() {
         // Перечитываем список проектов, если курс выбран
         if (currentCourse) renderInstalledProjects(currentCourse.id);
     }
+}
+// Функция-обработчик клика по кнопке запуска редактора
+async function openProjectInEditor(path, editorType, btnElement) {
+    console.log(`Attempting to open: ${path} with ${editorType}`);
+
+    // Сохраняем исходный текст кнопки
+    const originalText = btnElement.textContent;
+    const originalColor = btnElement.style.backgroundColor;
+
+    // Визуальная реакция
+    btnElement.textContent = "⏳...";
+    btnElement.disabled = true;
+
+    // Вызываем Python
+    const result = await eel.launch_editor(path, editorType)();
+
+    if (result.status === 'error') {
+        alert(`Не удалось запустить редактор!\nОшибка: ${result.msg}\n\nПопробуем просто открыть папку.`);
+        eel.open_folder(path); // Запасной план
+    } else {
+        console.log("Editor launched successfully");
+    }
+
+    // Возвращаем кнопку в исходное состояние через секунду
+    setTimeout(() => {
+        btnElement.textContent = originalText;
+        btnElement.style.backgroundColor = originalColor;
+        btnElement.disabled = false;
+    }, 1500);
 }

@@ -4,29 +4,50 @@ import os
 import re
 import requests
 import zipfile
-import io
 import subprocess
 import sys
 import tkinter as tk
 from tkinter import filedialog
 
-
 CONFIG_FILE = 'config.json'
 
 
+# --- СИСТЕМНЫЕ УТИЛИТЫ ---
+
+def resource_path(relative_path):
+    """
+    Получает абсолютный путь к ресурсу.
+    Нужен для работы внутри .exe (PyInstaller).
+    """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+def _load_course_data():
+    """
+    Гибридная загрузка: ищет data.json снаружи (рядом с exe),
+    если нет — берет встроенный.
+    """
+    external_path = 'data.json'
+    if os.path.exists(external_path):
+        return external_path
+    return resource_path('data.json')
+
+
 def _load_config():
-    """Читает конфиг. Если файла нет — возвращает дефолт."""
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except:
-            pass  # Если файл битый, игнорируем
+            pass
     return {"download_path": ""}
 
 
 def _save_config(key, value):
-    """Обновляет одно значение в конфиге и сохраняет файл."""
     config = _load_config()
     config[key] = value
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -34,143 +55,233 @@ def _save_config(key, value):
 
 
 def _get_default_download_path():
-    """Путь по умолчанию: Documents/DigiSchool"""
-    return os.path.join(os.path.expanduser("~"), "Documents", "DigiSchool")
+    # ИСПРАВЛЕНО: DigiSchool -> DigiScool
+    return os.path.join(os.path.expanduser("~"), "Documents", "DigiScool")
+
+
+def sanitize_filename(name):
+    return re.sub(r'[\\/*?:"<>|]', "", name).strip()
 
 
 # --- API EEL ---
 
 @eel.expose
 def get_current_settings():
-    """Отдает Frontend текущую папку загрузки"""
     config = _load_config()
     current_path = config.get("download_path")
-
     if not current_path:
         current_path = _get_default_download_path()
-
     return {"download_path": current_path}
 
 
 @eel.expose
 def choose_folder():
-    """
-    Открывает нативное окно выбора папки через Tkinter.
-    Возвращает выбранный путь или None, если отменили.
-    """
-    # Создаем скрытое окно Tkinter (оно нужно, чтобы запустить диалог)
     root = tk.Tk()
-    root.withdraw()  # Скрываем главное окно
-    root.wm_attributes('-topmost', 1)  # Окно диалога будет поверх всех окон
-
+    root.withdraw()
+    root.wm_attributes('-topmost', 1)
     folder_selected = filedialog.askdirectory()
-
-    root.destroy()  # Уничтожаем окно после выбора
+    root.destroy()
 
     if folder_selected:
-        # Нормализуем путь (меняем слэши для красоты)
         folder_selected = os.path.normpath(folder_selected)
-        # Сохраняем сразу в конфиг
         _save_config("download_path", folder_selected)
         return folder_selected
-
     return None
 
 
-def _get_cmd_output(command_list):
-    """
-    Внутренняя функция: запускает команду скрытно и возвращает текст вывода.
-    Работает и с stdout, и с stderr (так как Java пишет версию в stderr).
-    """
-    startupinfo = None
+@eel.expose
+def get_courses():
+    try:
+        json_path = _load_course_data()
+        with open(json_path, 'r', encoding='utf-8') as file:
+            return json.load(file)
+    except Exception as e:
+        print(f"Error loading courses: {e}")
+        return []
 
-    # Специфика Windows: скрываем черное окно консоли
-    if sys.platform == "win32":
+
+# --- ПРОВЕРКА ОКРУЖЕНИЯ (ENVIRONMENT CHECK) ---
+
+def _check_java_17():
+    try:
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
 
-    try:
         result = subprocess.run(
-            command_list,
-            capture_output=True,  # Перехватываем вывод
-            text=True,  # Автоматически декодируем байты в строки
-            startupinfo=startupinfo,
-            check=False  # Не выбрасывать ошибку, если код возврата != 0
+            ["java", "-version"],
+            capture_output=True, text=True, startupinfo=startupinfo
         )
-        # Объединяем stdout и stderr, чтобы найти версию везде
-        return (result.stdout + result.stderr).strip()
+        output = result.stderr + result.stdout
 
+        version_match = re.search(r'version "17\.\d+\.\d+', output)
+        is_17 = bool(version_match)
+
+        version_str = "Unknown"
+        if version_match:
+            version_str = version_match.group(0).replace('version "', '')
+
+        return {"installed": is_17, "version": version_str if is_17 else "Wrong Ver", "tooltip": output.split('\n')[0]}
     except FileNotFoundError:
-        # Программа не найдена в PATH
-        return None
-    except Exception as e:
-        print(f"Error checking {command_list[0]}: {e}")
-        return None
+        return {"installed": False, "version": "Missing", "tooltip": "Java not in PATH"}
 
 
-def _extract_version(output_text):
-    """
-    Ищет паттерн версии (например, 1.8.0, 17.0.1, 20.5.0) в тексте.
-    """
-    if not output_text:
-        return None
+def _check_program_path(possible_paths, name_for_display):
+    for path in possible_paths:
+        expanded_path = os.path.expandvars(path)
+        if os.path.exists(expanded_path):
+            return {"installed": True, "version": "Installed", "tooltip": f"Found at: {expanded_path}"}
+    return {"installed": False, "version": "Missing", "tooltip": f"{name_for_display} not found"}
 
-    # Regex: ищет цифры с точками (минимум X.Y)
-    # Пример совпадения: "17.0.2" из "openjdk version 17.0.2 2022-01-18"
-    match = re.search(r'(\d+\.\d+(\.\d+)?)', output_text)
-    if match:
-        return match.group(1)
-    return "Unknown"
+
+def _find_jetbrains_product(product_name_start):
+    base_paths = [
+        r"C:\Program Files\JetBrains",
+        r"C:\Program Files (x86)\JetBrains",
+        r"C:\Program Files (x86)\JetBrains",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs")
+    ]
+    for base in base_paths:
+        if os.path.exists(base):
+            try:
+                for folder in os.listdir(base):
+                    if folder.startswith(product_name_start):
+                        return {"installed": True, "version": folder,
+                                "tooltip": f"Found at: {os.path.join(base, folder)}"}
+            except:
+                continue
+    return {"installed": False, "version": "Missing", "tooltip": "Not found"}
 
 
 @eel.expose
 def check_software_versions():
-    print("Checking system environment...")  # Лог в консоль разработчика
-
-    # Список команд для проверки
-    checks = {
-        "java": ["java", "-version"],
-        "node": ["node", "-v"],
-        "git": ["git", "--version"]
-    }
-
+    print("🔎 Checking software...")
     report = {}
 
-    for tool, cmd in checks.items():
-        raw_output = _get_cmd_output(cmd)
+    # 1. VS Code
+    report["vscode"] = _check_program_path([
+        r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe",
+        r"C:\Program Files\Microsoft VS Code\Code.exe"
+    ], "VS Code")
 
-        if raw_output:
-            version = _extract_version(raw_output)
-            report[tool] = {
-                "installed": True,
-                "version": version,
-                "raw": raw_output[:50]  # Для отладки (обрезаем длинные строки)
-            }
-        else:
-            report[tool] = {
-                "installed": False,
-                "version": None
-            }
+    # 2. Unity Hub
+    report["unity"] = _check_program_path([
+        r"C:\Program Files\Unity Hub\Unity Hub.exe",
+        r"C:\Program Files (x86)\Unity Hub\Unity Hub.exe"
+    ], "Unity Hub")
+
+    # 3. Visual Studio
+    report["visualstudio"] = _check_program_path([
+        r"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe",
+        r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe"
+    ], "Visual Studio")
+
+    # 4. Minecraft Education
+    report["mcedu"] = _check_program_path([
+        r"C:\Program Files (x86)\Minecraft Education Edition\minecraft.windows.exe",
+        r"%LOCALAPPDATA%\Packages\Microsoft.MinecraftEducationEdition_8wekyb3d8bbwe"
+    ], "MC Education")
+
+    # 5. IntelliJ IDEA (Твой кастомный путь + стандартный поиск)
+    custom_idea = r"D:\IntelliJ IDEA 2025.3.1.1\bin\idea64.exe"
+    if os.path.exists(custom_idea):
+        report["intellij"] = {
+            "installed": True,
+            "version": "Custom (D:)",
+            "tooltip": f"Found at: {custom_idea}"
+        }
+    else:
+        report["intellij"] = _find_jetbrains_product("IntelliJ IDEA")
 
     return report
 
 
+# --- ЗАПУСК РЕДАКТОРОВ (LAUNCHER) ---
+
+@eel.expose
+def launch_editor(path, editor_type):
+    clean_path = os.path.normpath(path)
+    print(f"🚀 Launching {editor_type} for: {clean_path}")
+
+    try:
+        if editor_type == 'vscode':
+            cmd = f'code "{clean_path}"'
+            subprocess.Popen(cmd, shell=True)
+            return {"status": "success"}
+
+        elif editor_type == 'unity':
+            hub_paths = [
+                r"C:\Program Files\Unity Hub\Unity Hub.exe",
+                r"C:\Program Files (x86)\Unity Hub\Unity Hub.exe"
+            ]
+            hub_exe = None
+            for p in hub_paths:
+                if os.path.exists(p):
+                    hub_exe = p
+                    break
+
+            if not hub_exe:
+                return {"status": "error", "msg": "Unity Hub не найден."}
+
+            subprocess.Popen([hub_exe, "--", "--open", clean_path])
+            return {"status": "success"}
+
+        elif editor_type == 'intellij':
+            # === ОБНОВЛЕННЫЙ ЗАПУСК IDEA ===
+            custom_exe = r"D:\IntelliJ IDEA 2025.3.1.1\bin\idea64.exe"
+
+            if os.path.exists(custom_exe):
+                # Запускаем конкретный файл
+                subprocess.Popen([custom_exe, clean_path])
+            else:
+                # Пытаемся запустить через команду системы (если в PATH)
+                subprocess.Popen(["idea64.exe", clean_path], shell=True)
+
+            return {"status": "success"}
+
+        else:
+            return {"status": "error", "msg": f"Unknown editor: {editor_type}"}
+
+    except Exception as e:
+        return {"status": "error", "msg": str(e)}
+
+
+@eel.expose
+def open_folder(path):
+    if sys.platform == "win32":
+        os.startfile(path)
+    else:
+        subprocess.call(["open", path])
+
+
+# --- СКАЧИВАНИЕ ПРОЕКТОВ (STREAM TO DISK) ---
+
+def ensure_project_folder(base_path, course_name, student_name, project_name):
+    full_path = os.path.join(
+        base_path,
+        "DigiScool",  # ИСПРАВЛЕНО НА DIGISCOOL
+        sanitize_filename(course_name),
+        sanitize_filename(student_name),
+        sanitize_filename(project_name)
+    )
+    try:
+        os.makedirs(full_path, exist_ok=True)
+        return {"status": "success", "path": full_path}
+    except Exception as e:
+        return {"status": "error", "msg": str(e)}
+
+
 @eel.expose
 def download_project(course_id, project_name, student_name, project_index):
-    # 1. Получаем путь из конфига
+    # 1. Config
     config = _load_config()
-    base_path = config.get("download_path")
-    if not base_path:
-        base_path = _get_default_download_path()
+    base_path = config.get("download_path") or _get_default_download_path()
 
-    print(f"📥 Downloading to: {base_path}")
-
-    # 1. Сначала ищем URL в data.json по ID курса и имени проекта
-    # (В реальном проекте лучше передавать URL сразу из JS, но так безопаснее)
+    # 2. URL Search
     target_url = None
     try:
-        with open('data.json', 'r', encoding='utf-8') as f:
+        json_path = _load_course_data()
+        with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             for course in data:
                 if course['id'] == course_id:
@@ -179,192 +290,101 @@ def download_project(course_id, project_name, student_name, project_index):
                             target_url = proj['github_url']
                             break
     except Exception as e:
-        return {"status": "error", "msg": f"Ошибка чтения config: {e}"}
+        return {"status": "error", "msg": f"Config error: {e}"}
 
     if not target_url:
-        return {"status": "error", "msg": "Ссылка на GitHub не найдена!"}
+        return {"status": "error", "msg": "URL not found!"}
 
-    # 2. Создаем папку (используем функцию из DIG-17)
+    # 3. Folder Prep
     folder_result = ensure_project_folder(base_path, course_id, student_name, project_name)
     if folder_result['status'] == 'error':
         return folder_result
-
     target_dir = folder_result['path']
+    temp_zip_path = os.path.join(target_dir, "temp.zip")
 
-    # 3. СКАЧИВАНИЕ
     try:
-        # Сообщаем UI: "Начинаю качать..."
-        eel.update_ui_progress(project_index, 0, "Ühendamine GitHubiga...")
-        eel.sleep(0.1)  # Даем UI время обновиться
-
+        # 4. DOWNLOAD STREAM
+        eel.update_ui_progress(project_index, 5, "Connecting...")
         response = requests.get(target_url, stream=True)
         total_length = response.headers.get('content-length')
 
-        downloaded_data = io.BytesIO()  # Буфер в памяти
-        downloaded_size = 0
-        chunk_size = 1024 * 16  # 16 КБ
+        with open(temp_zip_path, 'wb') as f:
+            dl_size = 0
+            chunk_size = 65536
+            if total_length is None:
+                fake_percent = 10
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    f.write(chunk)
+                    dl_size += len(chunk)
+                    mb = round(dl_size / 1048576, 1)
+                    fake_percent = 10 if fake_percent > 90 else fake_percent + 1
+                    if dl_size % (1024 * 1024) == 0:
+                        eel.update_ui_progress(project_index, fake_percent, f"DL: {mb} MB...")
+                        eel.sleep(0.001)
+            else:
+                total_length = int(total_length)
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    f.write(chunk)
+                    dl_size += len(chunk)
+                    percent = int((dl_size / total_length) * 100)
+                    if dl_size % (1024 * 512) == 0:
+                        eel.update_ui_progress(project_index, percent, f"Loading: {percent}%")
+                        eel.sleep(0.001)
 
-        if total_length is None:
-            # Если GitHub не отдал размер, просто показываем МБ
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                downloaded_data.write(chunk)
-                downloaded_size += len(chunk)
-                mb = round(downloaded_size / (1024 * 1024), 2)
-                eel.update_ui_progress(project_index, 50, f"Laetud: {mb} MB...")
-                eel.sleep(0.01)  # ВАЖНО: Не дает интерфейсу зависнуть
-        else:
-            # Если размер известен, считаем честные проценты
-            total_length = int(total_length)
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                downloaded_data.write(chunk)
-                downloaded_size += len(chunk)
-                percent = int((downloaded_size / total_length) * 100)
-                eel.update_ui_progress(project_index, percent, f"Laadimine: {percent}%")
-                eel.sleep(0.01)
-
-        # 4. РАСПАКОВКА
-        eel.update_ui_progress(project_index, 90, "Lahtipakkimine...")
-        eel.sleep(0.1)
-
-        with zipfile.ZipFile(downloaded_data) as z:
-            # GitHub кладет всё в папку "repo-main", нам надо её пропустить
-            root_folder = z.namelist()[0]
-
+        # 5. UNZIP
+        eel.update_ui_progress(project_index, 98, "Unzipping...")
+        with zipfile.ZipFile(temp_zip_path, 'r') as z:
+            root = z.namelist()[0]
             for file in z.namelist():
-                # Убираем корневую папку из пути
-                rel_path = os.path.relpath(file, root_folder)
+                if file == root: continue
+                rel_path = file[len(root):]
+                if not rel_path or rel_path.startswith("__MACOSX"): continue
 
-                # Если это сама папка или системный файл - пропускаем
-                if rel_path == "." or rel_path.startswith("__MACOSX"):
-                    continue
-
-                dest_path = os.path.join(target_dir, rel_path)
-
-                # Создаем папки/файлы
+                dest = os.path.join(target_dir, rel_path)
                 if file.endswith('/'):
-                    os.makedirs(dest_path, exist_ok=True)
+                    os.makedirs(dest, exist_ok=True)
                 else:
-                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                    with open(dest_path, "wb") as f:
-                        f.write(z.read(file))
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    with open(dest, "wb") as f_out:
+                        f_out.write(z.read(file))
 
-        # 5. ФИНАЛ
-        eel.update_ui_progress(project_index, 100, "Valmis! (Готово)")
+        if os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+
+        eel.update_ui_progress(project_index, 100, "Done!")
         return {"status": "success", "path": target_dir}
 
     except Exception as e:
-        print(f"Error: {e}")
+        if os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
         return {"status": "error", "msg": str(e)}
 
-
-@eel.expose
-def get_courses():
-    """
-    Read fail data.json and return list of courses.
-    """
-    try:
-        # Open file data.json and read it. encoding='utf-8' is important!
-        with open('data.json', 'r', encoding='utf-8') as file:
-            data = json.load(file)
-            # return list of courses
-            return data
-
-    except FileNotFoundError:
-        print("Error: File not found!")
-        return []
-    except json.JSONDecodeError as e:
-        print(f"Error wrong JSON format: {e}")
-        return []
-
-
-def sanitize_filename(name):
-    """Удаляет запрещенные символы из имени папки"""
-    # Оставляем только буквы, цифры, пробелы, дефис и подчеркивание
-    # Все остальное меняем на пустоту
-    return re.sub(r'[\\/*?:"<>|]', "", name).strip()
-
-
-def ensure_project_folder(base_path, course_name, student_name, project_name):
-    # Очищаем имена от спецсимволов
-    clean_course = sanitize_filename(course_name)
-    clean_student = sanitize_filename(student_name)
-    clean_project = sanitize_filename(project_name)
-
-    # ЛОГИКА СТРУКТУРЫ:
-    # 1. base_path - то, что выбрал юзер (например, F:/)
-    # 2. "DigiSchool" - наш системный контейнер (чтобы легко находить установленное)
-    # 3. clean_course - группировка по курсу (Python, Web...)
-    # 4. clean_student - папка конкретного ученика
-    # 5. clean_project - папка проекта
-
-    # Если ты хочешь, чтобы ВСЕ проекты ученика были в одной папке независимо от курса,
-    # можно поменять местами clean_course и clean_student.
-    # Но пока оставим как было в Спринте 1 (Курс -> Ученик).
-
-    full_path = os.path.join(
-        base_path,
-        "DigiSchool",  # <--- ВОТ ЭТО МЫ ВЕРНУЛИ
-        clean_course,
-        clean_student,
-        clean_project
-    )
-
-    try:
-        os.makedirs(full_path, exist_ok=True)
-        print(f"📂 Folder ready: {full_path}")  # Лог для контроля
-        return {"status": "success", "path": full_path}
-    except Exception as e:
-        return {"status": "error", "msg": str(e)}
-
-
-# main.py
 
 @eel.expose
 def get_installed_projects(course_id):
-    """
-    Сканирует папку установки и возвращает список найденных проектов для конкретного курса.
-    Структура: base_path / DigiSchool / course_id / student_name / project_name
-    """
     config = _load_config()
     base_path = config.get("download_path") or _get_default_download_path()
-
-    # Путь к папке курса
-    course_path = os.path.join(base_path, "DigiSchool", sanitize_filename(course_id))
+    course_path = os.path.join(base_path, "DigiScool", sanitize_filename(course_id))  # DigiScool fix
 
     found_projects = []
-
     if os.path.exists(course_path):
-        # Проходимся по всем студентам внутри курса
         try:
             students = os.listdir(course_path)
             for student in students:
                 student_path = os.path.join(course_path, student)
                 if os.path.isdir(student_path):
-                    # Проходимся по проектам студента
                     projects = os.listdir(student_path)
                     for proj in projects:
-                        # Добавляем в список (можно добавить проверку на наличие файлов внутри)
                         found_projects.append({
                             "name": proj,
                             "student": student,
                             "path": os.path.join(student_path, proj),
                             "course_id": course_id
                         })
-        except Exception as e:
-            print(f"Error scanning projects: {e}")
-
+        except:
+            pass
     return found_projects
 
-
-@eel.expose
-def open_folder(path):
-    """Открывает папку в проводнике (Explorer/Finder)"""
-    if sys.platform == "win32":
-        os.startfile(path)
-    elif sys.platform == "darwin":
-        subprocess.call(["open", path])
-    else:
-        subprocess.call(["xdg-open", path])
 
 if __name__ == '__main__':
     eel.init('web')

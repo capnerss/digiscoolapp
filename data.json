@@ -1,21 +1,78 @@
 [
   {
-    "id": "java_course",
+    "id": "minecraft_java_118",
     "title": "Minecraft Java 1.18",
+    "editor": "intellij",
+    "requirements": ["intellij"],
     "projects": [
+      {
+         "name": "1. Sword mod",
+         "github_url": "https://github.com/capnerss/autot/archive/refs/heads/main.zip"
+       },
+      {
+         "name": "2. Lucky block",
+         "github_url": "https://github.com/capnerss/autotests/archive/refs/heads/main.zip"
+       },
+      {
+         "name": "3. Armor mod",
+         "github_url": "https://github.com/capnerss/minecraft26/archive/refs/heads/main.zip"
+       },
+      {
+         "name": "4. Ore mod",
+         "github_url": "https://github.com/capnerss/minecraft25/archive/refs/heads/main.zip"
+       },
        {
-         "name": "My Epic Sword",
-         "github_url": "https://github.com/capnerss/digiscool/archive/refs/heads/main.zip"
+         "name": "5. Boom mod",
+         "github_url": "https://github.com/capnerss/maff/archive/refs/heads/main.zip"
+       },
+      {
+         "name": "6. House mod",
+         "github_url": "https://github.com/capnerss/btc2/archive/refs/heads/main.zip"
+       },
+      {
+         "name": "7. Epic weapons",
+         "github_url": "https://github.com/capnerss/ttrk/archive/refs/heads/main.zip"
+       },
+      {
+         "name": "8. Creature mod",
+         "github_url": "https://github.com/capnerss/Create-a-Creature/archive/refs/heads/main.zip"
+       },
+      {
+         "name": "9. Ai",
+         "github_url": "https://github.com/capnerss/minecraftjava/archive/refs/heads/main.zip"
        }
+
     ]
   },
   {
-    "id": "unity_course",
+    "id": "unity_junior",
     "title": "Unity Junior",
+    "editor": "unity",
+    "requirements": ["unity", "visualstudio"],
     "projects": [
+      {
+        "name": "Simple 3D platformer",
+        "github_url": "https://github.com/capnerss/parkur/archive/refs/heads/main.zip"
+      },
       {
         "name": "Adventure Game",
         "github_url": "https://github.com/Arkudaa/DigitalYouth2022/archive/refs/heads/main.zip"
+      },
+      {
+        "name": "Rolling ball game",
+        "github_url": "https://github.com/capnerss/parkur/archive/refs/heads/main.zip"
+      }
+    ]
+  },
+  {
+    "id": "python_pro",
+    "title": "Python",
+    "editor": "vscode",
+    "requirements": ["vscode"],
+    "projects": [
+      {
+        "name": "Variable",
+        "github_url": "https://github.com/capnerss/digiscool/archive/refs/heads/main.zip"
       }
     ]
   }
